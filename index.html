@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Llama-3.2 Python Coder 🚀</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; 
+            padding: 0;
+            background-color: #f0f2f5; 
+            color: #1c1e21;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container { 
+            background: #ffffff; 
+            padding: 25px 30px; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            width: 100%;
+            max-width: 700px;
+        }
+        h1 { 
+            text-align: center; 
+            color: #1877f2; /* Facebook blue */
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #606770;
+        }
+        textarea, input[type="number"] { 
+            width: calc(100% - 22px); 
+            min-height: 120px; 
+            padding: 10px; 
+            border: 1px solid #ccd0d5; 
+            border-radius: 6px; 
+            margin-bottom: 15px; 
+            font-family: "Consolas", "Monaco", monospace; 
+            font-size: 14px; 
+            resize: vertical;
+        }
+        input[type="number"] {
+            min-height: auto;
+            height: 38px;
+            margin-bottom: 10px;
+        }
+        .param-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .param-group > div {
+            flex: 1;
+        }
+        button { 
+            background-color: #1877f2; 
+            color: white; 
+            padding: 12px 20px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: 600;
+            transition: background-color 0.2s;
+            display: block;
+            width: 100%;
+        }
+        button:hover { 
+            background-color: #166fe5; 
+        }
+        button:disabled {
+            background-color: #e4e6eb;
+            color: #bcc0c4;
+            cursor: not-allowed;
+        }
+        #responseArea { 
+            margin-top: 25px; 
+            background-color: #282c34; /* Dark background for code */
+            color: #abb2bf;  /* Light text for dark background */
+            padding: 15px; 
+            border-radius: 6px; 
+            white-space: pre-wrap; 
+            word-wrap: break-word; 
+            font-family: "Consolas", "Monaco", monospace;
+            font-size: 14px; 
+            min-height: 100px;
+            border: 1px solid #333842;
+        }
+        .loader { 
+            border: 4px solid #f3f3f3; 
+            border-top: 4px solid #1877f2; 
+            border-radius: 50%; 
+            width: 24px; 
+            height: 24px; 
+            animation: spin 1s linear infinite; 
+            margin: 20px auto; 
+            display: none; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-message {
+            color: #fa383e;
+            background-color: #ffebe6;
+            border: 1px solid #fa383e;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Llama-3.2 Fine-Tuned Coder 🐍</h1>
+        
+        <label for="promptInput">Enter Instruction:</label>
+        <textarea id="promptInput" placeholder="e.g., Write a Python function to calculate the factorial of a number."></textarea>
+        
+        <div class="param-group">
+            <div>
+                <label for="maxNewTokens">Max New Tokens:</label>
+                <input type="number" id="maxNewTokens" value="512" min="10" max="2048">
+            </div>
+            <div>
+                <label for="temperature">Temperature (0 for greedy):</label>
+                <input type="number" id="temperature" value="0.0" step="0.1" min="0.0" max="2.0">
+            </div>
+        </div>
+        
+        <button id="generateButton" onclick="submitPrompt()">Generate</button>
+        
+        <div class="loader" id="loader"></div>
+        
+        <div id="errorDisplay" class="error-message" style="display: none;"></div>
+        
+        <h3>Response:</h3>
+        <div id="responseArea">
+            </div>
+    </div>
+
+    <script>
+        const promptInput = document.getElementById('promptInput');
+        const responseArea = document.getElementById('responseArea');
+        const loader = document.getElementById('loader');
+        const generateButton = document.getElementById('generateButton');
+        const errorDisplay = document.getElementById('errorDisplay');
+        const maxNewTokensInput = document.getElementById('maxNewTokens');
+        const temperatureInput = document.getElementById('temperature');
+
+        async function submitPrompt() {
+            const prompt = promptInput.value;
+            const max_new_tokens = parseInt(maxNewTokensInput.value);
+            const temperature = parseFloat(temperatureInput.value);
+
+            if (!prompt.trim()) {
+                displayError("Please enter an instruction.");
+                return;
+            }
+
+            responseArea.innerText = ""; // Clear previous response
+            errorDisplay.style.display = 'none'; // Clear previous error
+            loader.style.display = 'block'; // Show loader
+            generateButton.disabled = true; // Disable button
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        prompt: prompt,
+                        max_new_tokens: max_new_tokens,
+                        temperature: temperature,
+                        top_k: temperature === 0.0 ? 1 : 0 // Use top_k=1 for greedy, 0 (no top_k) for sampling
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Server Error: ${response.status} ${response.statusText}\n${errorData.error || 'Unknown error'}`);
+                }
+
+                const data = await response.json();
+                responseArea.innerText = data.generated_text;
+
+            } catch (error) {
+                console.error('Error:', error);
+                displayError('Failed to get response from the server. \n' + error.message);
+            } finally {
+                loader.style.display = 'none'; // Hide loader
+                generateButton.disabled = false; // Re-enable button
+            }
+        }
+
+        function displayError(message) {
+            errorDisplay.innerText = message;
+            errorDisplay.style.display = 'block';
+            responseArea.innerText = ""; // Clear response area on error
+        }
+
+        // Optional: Allow Enter key to submit if textarea is focused (Shift+Enter for newline)
+        promptInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault(); // Prevent default Enter behavior (newline)
+                submitPrompt();
+            }
+        });
+    </script>
+</body>
+</html>
